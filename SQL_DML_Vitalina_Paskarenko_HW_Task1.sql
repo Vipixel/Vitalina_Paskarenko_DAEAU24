@@ -178,3 +178,55 @@ INSERT INTO inventory (film_id, store_id, last_update)
 SELECT 1003, 1, CURRENT_DATE
 FROM film
 WHERE title = 'Time';
+
+-- Find a customer with at least 43 rental and 43 payment records,
+SELECT c.customer_id
+FROM customer c
+JOIN rental r ON c.customer_id = r.customer_id
+JOIN payment p ON c.customer_id = p.customer_id
+GROUP BY c.customer_id
+HAVING COUNT(DISTINCT r.rental_id) >= 43 AND COUNT(DISTINCT p.payment_id) >= 43
+LIMIT 1;
+
+-----updated information about customer_id 1 
+UPDATE customer
+SET first_name = 'Vitalina',
+    last_name = 'Paskarenko',
+    email = 'polandmondol@gmail.com',
+    address_id = (SELECT address_id FROM address LIMIT 1)
+WHERE customer_id = 1;
+
+-----Removed records about customer_id 1 from tables(rental, payment)
+DELETE FROM payment
+WHERE customer_id = 1;
+
+DELETE FROM rental
+WHERE customer_id = 1;
+
+
+-- I needed to add a record in the rental table because without a rental_id, I can't create a payment for the movie 'Pretty Woman'
+
+INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id, last_update)
+SELECT '2017-05-15','4582', 1,'2017-05-23', 1, CURRENT_DATE;
+
+-----Make payment for 'Pretty Woman'
+INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
+SELECT 1, 1, 32298, 4.99, '2017-05-23';
+
+-- added a record for the movie 'Avatar'
+
+INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id, last_update)
+SELECT '2017-05-05','4584', 1,'2017-05-19', 2, CURRENT_DATE;
+
+---Make payment for movie'Avatar'
+INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
+SELECT 1, 2, 32304, 9.99, '2017-05-19';
+
+-- added a record for the movie 'Time'
+
+INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id, last_update)
+SELECT '2017-05-01','4590', 1,'2017-05-30', 1, CURRENT_DATE;
+
+---Make payment for movie 'Time'
+INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
+SELECT 1, 2, 32306, 19.99, '2017-05-30';
