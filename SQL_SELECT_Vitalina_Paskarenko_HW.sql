@@ -13,28 +13,30 @@ ORDER by film.title ASC;
 
 --Top-5 actors by number of movies (released since 2015) 
 
-SELECT actor.first_name, actor.last_name, COUNT(film.film_id) AS number_of_movies
-FROM actor 
-JOIN film_actor ON actor.actor_id = film_actor.actor_id --Joins category
-JOIN film ON film_actor.film_id = film.film_id
+SELECT 
+    LOWER(actor.first_name) AS first_name, 
+    LOWER(actor.last_name) AS last_name,
+    COUNT(film.film_id) AS number_of_movies
+FROM public.actor
+JOIN public.film_actor ON actor.actor_id = film_actor.actor_id
+JOIN public.film ON film_actor.film_id = film.film_id
 WHERE film.release_year >= 2015
 GROUP BY actor.actor_id, actor.first_name, actor.last_name
 ORDER BY number_of_movies DESC
-LIMIT 5;
+OFFSET 0 LIMIT 5;
 
 ----Number of Drama, Travel, Documentary per year
 
 SELECT film.release_year,
-       COUNT(CASE WHEN category.name = 'Drama' THEN 1 END) AS num_drama_movies, -- Counts Drama movies for each year
-       COUNT(CASE WHEN category.name = 'Travel' THEN 1 END) AS num_travel_movies, -- Counts Travel movies for each year
-       COUNT(CASE WHEN category.name = 'Documentary' THEN 1 END) AS num_doc_movies -- Counts Documentary movies for each year
+       COUNT(CASE WHEN LOWER(category.name) = 'drama' THEN 1 END) AS num_drama_movies, -- Counts Drama movies for each year
+       COUNT(CASE WHEN LOWER(category.name) = 'travel' THEN 1 END) AS num_travel_movies, -- Counts Travel movies for each year
+       COUNT(CASE WHEN LOWER(category.name) = 'documentary' THEN 1 END) AS num_doc_movies -- Counts Documentary movies for each year
 FROM film
 JOIN film_category ON film.film_id = film_category.film_id
 JOIN category ON film_category.category_id = category.category_id 
 WHERE category.name IN ('Drama', 'Travel', 'Documentary')
 GROUP BY film.release_year -- Groups results by release year so I can count movies per year
 ORDER BY film.release_year DESC;
-
 
 --For each client, display a list of horrors that he had ever rented (in one column, separated by commas), and the amount of money that he paid for it
 
@@ -52,8 +54,6 @@ JOIN payment ON rental.rental_id = payment.rental_id
 WHERE category.name = 'Horror'
 GROUP BY customer.customer_id, customer.first_name, customer.last_name
 ORDER BY customer_name;
-
-
 ---------------------------------------------
 ---Part 2.1: Solve the following problems using SQL
 -- total revenue per staff member for 2017
@@ -80,11 +80,12 @@ FROM (
     GROUP BY staff.staff_id, staff.first_name, staff.last_name, store.store_id  -- group by employee and store
 ) AS recent_store  -- end of sbquery, provides data on revenue and the last store per employee
 ORDER BY total_revenue DESC  ---- select only the top 3 employees with the highest revenue
+LIMIT 3;
 
 -- Find the top 5 most rented movies and determine the expected audience age based on ratings
 SELECT 
-    film.film_id,  -- movie ID
-    film.title,  -- title of the movie
+    film.film_id,  
+    film.title,  
     rental_count,  -- number of times the movie was rented
     CASE 
         WHEN film.rating = 'G' THEN 'All ages' 
