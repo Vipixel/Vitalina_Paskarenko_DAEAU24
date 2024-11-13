@@ -155,3 +155,34 @@ INSERT INTO climb_a.climb (climb_id,route_id, guide_id, weather_id, end_date)
 VALUES 
     (0001,1, 1, 1, '2024-03-19'),
     (0002,2, 2, 2, '2024-03-26');
+
+------Add a not null 'record_ts' field to each table 
+ALTER TABLE climb_a.training
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.equipment
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.climber
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.climber_training
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.weather
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.guide
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.area
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.mountain
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.route
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+
+ALTER TABLE climb_a.climb
+ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
