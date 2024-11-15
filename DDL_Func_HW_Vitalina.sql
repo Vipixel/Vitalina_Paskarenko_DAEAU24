@@ -47,3 +47,43 @@ $$;
 ---Tried if this work
 SELECT * 
 FROM get_sales_revenue_by_category_qtr(2017, 2);
+------Task 3
+CREATE OR REPLACE FUNCTION most_popular_films_by_countries(
+    countries TEXT[])
+RETURNS TABLE (
+    country TEXT,
+    film TEXT,
+    rating TEXT,
+    language TEXT,
+    length INT,
+    release_year INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        c.country AS country,
+        f.title AS film,
+        f.rating::TEXT AS rating,     -- Explicitly cast `f.rating` to TEXT
+        l.name::TEXT AS language,     -- Explicitly cast `l.name` to TEXT
+        f.length::INT AS length,      -- Explicitly cast `f.length` to INT
+        f.release_year::INT AS release_year  -- Explicitly cast `f.release_year` to INT
+    FROM country c
+    JOIN city ct ON c.country_id = ct.country_id
+    JOIN address a ON a.city_id = ct.city_id
+    JOIN store s ON a.address_id = s.address_id
+    JOIN inventory i ON s.store_id = i.store_id
+    JOIN rental r ON i.inventory_id = r.inventory_id
+    JOIN payment p ON r.rental_id = p.rental_id
+    JOIN film f ON f.film_id = i.film_id
+    JOIN language l ON f.language_id = l.language_id
+    WHERE c.country = ANY(countries)
+    GROUP BY c.country, f.title, f.rating, l.name, f.length, f.release_year
+    ORDER BY c.country, COUNT(r.rental_id) DESC;
+END;
+$$;
+
+----checked if this function work
+SELECT * 
+FROM most_popular_films_by_countries(ARRAY['Australia', 'Brazil', 'United States']);
