@@ -65,10 +65,10 @@ BEGIN
     SELECT 
         c.country AS country,
         f.title AS film,
-        f.rating::TEXT AS rating,     -- Explicitly cast `f.rating` to TEXT
-        l.name::TEXT AS language,     -- Explicitly cast `l.name` to TEXT
-        f.length::INT AS length,      -- Explicitly cast `f.length` to INT
-        f.release_year::INT AS release_year  -- Explicitly cast `f.release_year` to INT
+        f.rating::TEXT AS rating,
+        l.name::TEXT AS language,
+        f.length::INT AS length,  
+        f.release_year::INT AS release_year  
     FROM country c
     JOIN city ct ON c.country_id = ct.country_id
     JOIN address a ON a.city_id = ct.city_id
@@ -87,3 +87,45 @@ $$;
 ----checked if this function work
 SELECT * 
 FROM most_popular_films_by_countries(ARRAY['Australia', 'Brazil', 'United States']);
+
+-----Task 4
+
+CREATE OR REPLACE FUNCTION films_in_stock_by_title(
+    title_f TEXT)
+RETURNS TABLE (
+    row_num BIGINT,
+    title VARCHAR,
+    language VARCHAR,
+    customer VARCHAR,
+    rental_date TIMESTAMP WITH TIME ZONE)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        row_number() OVER (ORDER BY f.title) AS row_num,
+        f.title::VARCHAR AS title,
+        l.name::VARCHAR AS language,
+        CONCAT(c.first_name, ' ', c.last_name)::VARCHAR AS customer,
+        r.rental_date
+    FROM film f
+    JOIN inventory i ON f.film_id = i.film_id
+    JOIN rental r ON i.inventory_id = r.inventory_id
+    JOIN payment p ON r.rental_id = p.rental_id
+    JOIN customer c ON r.customer_id = c.customer_id
+    JOIN language l ON f.language_id = l.language_id
+    WHERE f.title ILIKE title_f 
+      AND i.inventory_id NOT IN (
+          SELECT inventory_id 
+          FROM rental 
+          WHERE return_date IS NULL);
+
+    -- If no movies are found will show a notice
+    IF NOT FOUND THEN
+        RAISE NOTICE 'No movies matching the title "%".', title_f;
+    END IF;
+END;
+$$;
+
+----checked if this function work
+SELECT * FROM films_in_stock_by_title('%love%');
