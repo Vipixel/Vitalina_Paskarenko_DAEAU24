@@ -2,19 +2,20 @@
 CREATE DATABASE climb_db;
 CREATE SCHEMA climb_a;
 -----creating tables 
-CREATE TABLE climb_a.training (
-    training_id INT PRIMARY KEY, 
-    training_name VARCHAR(100)NOT NULL, 
+
+CREATE TABLE IF NOT EXISTS climb_a.training (
+    training_id SERIAL PRIMARY KEY, 
+    training_name VARCHAR(100) NOT NULL, 
     training_date DATE NOT NULL, 
-    location  VARCHAR(100),
-    duration TIME
-	);
-CREATE TABLE climb_a.equipment (
-    equipment_id INT PRIMARY KEY,
+    location VARCHAR(100), 
+    duration INTERVAL
+);
+CREATE TABLE IF NOT EXISTS  climb_a.equipment (
+    equipment_id SERIAL PRIMARY KEY,
     e_description TEXT
 );
-CREATE TABLE climb_a.climber (
-    climber_id INT PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS climb_a.climber (
+    climber_id SERIAL PRIMARY KEY, 
     name VARCHAR(100), 
     adress TEXT, 
     birth_date DATE,
@@ -22,45 +23,45 @@ CREATE TABLE climb_a.climber (
 	equipment_id INT,
 	FOREIGN KEY (equipment_id)  REFERENCES climb_a.equipment (equipment_id)
 	);
-CREATE TABLE climb_a.climber_traning (
+CREATE TABLE IF NOT EXISTS climb_a.climber_traning (
     climber_id INT,
 	training_id INT,
 	FOREIGN KEY (climber_id)  REFERENCES climb_a.climber (climber_id),
 	FOREIGN KEY (training_id)  REFERENCES climb_a.training (training_id)
 	);
-CREATE TABLE climb_a.weather(
-    weather_id INT PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS climb_a.weather(
+    weather_id SERIAL PRIMARY KEY, 
     temperature DECIMAL(4,2)NOT NULL, 
     humidity DECIMAL(4,2), 
     wind_speed  DECIMAL(5,2) NOT NULL,
     conditions VARCHAR(100)
 	);
-CREATE TABLE climb_a.guide(
-    guide_id INT PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS climb_a.guide(
+    guide_id SERIAL PRIMARY KEY, 
     name VARCHAR(100),
 	phone_number VARCHAR(15)
 	);
 
-CREATE TABLE climb_a.area(
-    area_id INT PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS climb_a.area(
+    area_id SERIAL PRIMARY KEY, 
     name VARCHAR(100),
 	area_info TEXT
 	);
-CREATE TABLE climb_a.mountain(
-    mountain_id INT PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS climb_a.mountain(
+    mountain_id SERIAL PRIMARY KEY, 
     name VARCHAR(100),
 	height DECIMAL(6,2) NOT NULL,
 	area_id INT,
 	FOREIGN KEY (area_id)  REFERENCES climb_a.area (area_id)
 	);
-CREATE TABLE climb_a.route(
-    route_id INT PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS climb_a.route(
+    route_id SERIAL PRIMARY KEY, 
     name VARCHAR(100) NOT NULL,
 	mountain_id INT,
 	FOREIGN KEY (mountain_id)  REFERENCES climb_a.mountain (mountain_id)
 	);
-CREATE TABLE climb_a.climb(
-    climb_id INT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS climb_a.climb(
+    climb_id SERIAL PRIMARY KEY,
 	route_id INT,
 	guide_id INT,
 	weather_id INT,
@@ -69,7 +70,7 @@ CREATE TABLE climb_a.climb(
 	FOREIGN KEY (guide_id)  REFERENCES climb_a.guide (guide_id),
 	FOREIGN KEY (weather_id)  REFERENCES climb_a.weather (weather_id)
 	);
-CREATE TABLE climb_a.climb_climber (
+CREATE TABLE IF NOT EXISTS climb_a.climb_climber (
     climber_id INT,
 	climb_id INT,
 	FOREIGN KEY (climber_id)  REFERENCES climb_a.climber (climber_id),
@@ -102,59 +103,60 @@ ALTER TABLE climb_a.guide
 ALTER TABLE climb_a.training
     ALTER COLUMN duration TYPE INTERVAL;
 
-INSERT INTO climb_a.training (training_id,training_name, training_date, location, duration)
+INSERT INTO climb_a.training (training_name, training_date, location, duration)
 VALUES 
-    (101,'Climbing Basics', '2024-03-15', 'TatraCamp',INTERVAL '2 hours'),
-    (102,'Advanced Climbing', '2024-04-05', 'Training Base',INTERVAL '3 hours');
+    ('Climbing Basics', '2024-03-15', 'TatraCamp',INTERVAL '2 hours'),
+    ('Advanced Climbing', '2024-04-05', 'Training Base',INTERVAL '3 hours');
 
-INSERT INTO climb_a.equipment (equipment_id,e_description)
+INSERT INTO climb_a.equipment (e_description)
 VALUES 
-    (1001,'Climbing rope set'),
-    (1002,'Safety harness');
+    ('Climbing rope set'),
+    ('Safety harness');
 	
 ----Changing type of birth date 
 ALTER TABLE climb_a.climber
     DROP CONSTRAINT IF EXISTS chk_birth_date,
     ADD CONSTRAINT chk_birth_date CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years');
 -----
-INSERT INTO climb_a.climber (climber_id, name, adress, birth_date, medical_notes, equipment_id,gender)
+INSERT INTO climb_a.climber ( name, adress, birth_date, medical_notes,gender)
 VALUES 
-    (1,'Dagmara Rzeszanska', 'Franciszkanska 4', '1990-06-15', 'No issues', 1001, 'F'),
-    (2,'Marek Mroz', 'Pokorna 1533', '1995-10-20', 'Knee injury', 1002,'M');
+    ('Dagmara Rzeszanska', 'Franciszkanska 4', '1990-06-15', 'No issues','F'),
+    ('Marek Mroz', 'Pokorna 1533', '1995-10-20', 'Knee injury','M');
 
+select* from climb_a.climber_traning;
 INSERT INTO climb_a.climber_traning (climber_id, training_id)
 VALUES 
     (1, 102),
     (2, 101);
-INSERT INTO climb_a.weather (weather_id,temperature, humidity, wind_speed, conditions)
+INSERT INTO climb_a.weather (temperature, humidity, wind_speed, conditions)
 VALUES 
-    (1,15.5, 60.0, 5.5, 'Sunny'),
-    (2,10.0, 75.0, 8.0, 'Cloudy');
+    (15.5, 60.0, 5.5, 'Sunny'),
+    (10.0, 75.0, 8.0, 'Cloudy');
 
-INSERT INTO climb_a.guide (guide_id,name, phone_number)
+INSERT INTO climb_a.guide (name, phone_number)
 VALUES 
-    (1,'Magda Pierog', '653241989'),
-    (2,'Marek Bradz', '538823759');
+    ('Magda Pierog', '653241989'),
+    ('Marek Bradz', '538823759');
 	
-INSERT INTO climb_a.area (area_id,name, area_info)
+INSERT INTO climb_a.area (name, area_info)
 VALUES 
-    (01,'Morskie Oko', 'Moderate difficulty'),
-    (02,'Sarnia Skala', 'Challenging routes');
+    ('Morskie Oko', 'Moderate difficulty'),
+    ('Sarnia Skala', 'Challenging routes');
 
-INSERT INTO climb_a.mountain (mountain_id, name, height, area_id)
+INSERT INTO climb_a.mountain ( name, height, area_id)
 VALUES 
-    (1, 'Rysy', 2499.0, 01),
-    (2, 'Giewont', 1894.0, 02);
+    ('Rysy', 2499.0, 01),
+    ('Giewont', 1894.0, 02);
 
-INSERT INTO climb_a.route (route_id, name, mountain_id)
+INSERT INTO climb_a.route ( name)
 VALUES 
-    (1, 'Tatra ', 1),
-    (2, 'Droga pod Reglami', 2);
+    ('Tatra '),
+    ('Droga pod Reglami');
 
 INSERT INTO climb_a.climb (climb_id,route_id, guide_id, weather_id, end_date)
 VALUES 
-    (0001,1, 1, 1, '2024-03-19'),
-    (0002,2, 2, 2, '2024-03-26');
+    (1,1, 1, 1, '2024-03-19'),
+    (2,2, 2, 2, '2024-03-26');
 
 ------Add a not null 'record_ts' field to each table 
 ALTER TABLE climb_a.training
