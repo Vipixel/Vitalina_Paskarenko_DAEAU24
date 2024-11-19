@@ -1,31 +1,32 @@
 ---- Added 3 movies
 -- Insert "Pretty Woman"
 INSERT INTO film (title, description, release_year, language_id, original_language_id, rental_duration, rental_rate, length, replacement_cost, rating, last_update, special_features)
-SELECT 'Pretty Woman',
-       'A rich entrepreneur hires Vivian, a prostitute, to accompany him to social events. Trouble ensues when he falls in love with her, and they try to bridge the gap between their worlds.',
-       1990, 
-       1, 
-       null, 
-       9, 
-       4.99, 
-       90, 
-       50.00, 
-       'PG', 
-       CURRENT_DATE, 
-       ARRAY['romantic comedy']
+SELECT 
+    'Pretty Woman',
+    'A rich entrepreneur hires Vivian, a prostitute, to accompany him to social events. Trouble ensues when he falls in love with her, and they try to bridge the gap between their worlds.',
+    1990, 
+    (SELECT language_id FROM language WHERE name = 'English'),
+    null, 
+    9, 
+    4.99, 
+    90, 
+    50.00, 
+    'PG', 
+    CURRENT_DATE, 
+    ARRAY['romantic comedy']
 WHERE NOT EXISTS (
     SELECT 1 
     FROM film 
     WHERE title = 'Pretty Woman'
 )
-RETURNING film_id, title;
+RETURNING film_id, title, rental_duration, rental_rate;
 
 -- Insert "Avatar"
 INSERT INTO film (title, description, release_year, language_id, original_language_id, rental_duration, rental_rate, length, replacement_cost, rating, last_update, special_features)
 SELECT 'Avatar',
        'A paraplegic Marine dispatched to the moon Pandora on a unique mission becomes torn between following his orders and protecting the world he feels is his home.',
        2009, 
-       1, 
+       (SELECT language_id FROM language WHERE name = 'English'), 
        null, 
        7, 
        5.99, 
@@ -39,14 +40,14 @@ WHERE NOT EXISTS (
     FROM film 
     WHERE title = 'Avatar'
 )
-RETURNING film_id, title;
+RETURNING film_id, title, rental_duration, rental_rate;
 
 -- Insert "Time"
 INSERT INTO film (title, description, release_year, language_id, original_language_id, rental_duration, rental_rate, length, replacement_cost, rating, last_update, special_features)
 SELECT 'Time',
        'A powerful exploration of the impact of time on life, love, and choices, following a couple over decades as they face challenges and grow.',
        2020, 
-       1, 
+       (SELECT language_id FROM language WHERE name = 'English'), 
        null, 
        6, 
        3.99, 
@@ -60,7 +61,7 @@ WHERE NOT EXISTS (
     FROM film 
     WHERE title = 'Time'
 )
-RETURNING film_id, title;
+RETURNING film_id, title, rental_duration, rental_rate;
 
 ---- Update rental rates and durations according to the specified requirements
 UPDATE film
@@ -179,22 +180,21 @@ SELECT 1003, 1, CURRENT_DATE
 FROM film
 WHERE title = 'Time';
 
--- Find a customer with at least 43 rental and 43 payment records,
-SELECT c.customer_id
-FROM customer c
-JOIN rental r ON c.customer_id = r.customer_id
-JOIN payment p ON c.customer_id = p.customer_id
-GROUP BY c.customer_id
-HAVING COUNT(DISTINCT r.rental_id) >= 43 AND COUNT(DISTINCT p.payment_id) >= 43
-LIMIT 1;
-
------updated information about customer_id 1 
+-- Update the customer dynamically without hardcoding customer_id
 UPDATE customer
 SET first_name = 'Vitalina',
     last_name = 'Paskarenko',
     email = 'polandmondol@gmail.com',
     address_id = (SELECT address_id FROM address LIMIT 1)
-WHERE customer_id = 1;
+WHERE customer_id = 
+	(SELECT c.customer_id
+    FROM customer c
+    JOIN rental r ON c.customer_id = r.customer_id
+    JOIN payment p ON c.customer_id = p.customer_id
+    GROUP BY c.customer_id
+    HAVING COUNT(DISTINCT r.rental_id) >= 43 AND COUNT(DISTINCT p.payment_id) >= 43
+    LIMIT 1)
+RETURNING customer_id, first_name, last_name, email, address_id;
 
 -----Removed records about customer_id 1 from tables(rental, payment)
 DELETE FROM payment
@@ -203,30 +203,97 @@ WHERE customer_id = 1;
 DELETE FROM rental
 WHERE customer_id = 1;
 
+DELETE FROM rental
+WHERE inventory_id = 4582;
 
 -- I needed to add a record in the rental table because without a rental_id, I can't create a payment for the movie 'Pretty Woman'
 
 INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id, last_update)
-SELECT '2017-05-15','4582', 1,'2017-05-23', 1, CURRENT_DATE;
+SELECT '2017-05-15',
+     (SELECT inventory_id 
+     FROM inventory 
+     WHERE film_id = (SELECT film_id FROM film WHERE title = 'Pretty Woman')),
+     1,
+    '2017-05-23',
+    (SELECT staff_id 
+	 FROM staff 
+	 WHERE store_id = (SELECT store_id FROM store LIMIT 1) LIMIT 1),
+    CURRENT_DATE
+RETURNING rental_id, rental_date, inventory_id;
 
 -----Make payment for 'Pretty Woman'
+
 INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
-SELECT 1, 1, 32298, 4.99, '2017-05-23';
+SELECT 
+    1,
+    (SELECT staff_id 
+	 FROM staff 
+	 WHERE store_id = (SELECT store_id FROM store LIMIT 1) LIMIT 1),
+    (SELECT rental_id 
+     FROM rental 
+     WHERE inventory_id = (SELECT inventory_id 
+                           FROM inventory 
+                           WHERE film_id = (SELECT film_id FROM film WHERE title = 'Pretty Woman'))),
+     4.99,
+    '2017-05-23'
+RETURNING payment_id, customer_id, rental_id, amount;
 
 -- added a record for the movie 'Avatar'
 
-INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id, last_update)
-SELECT '2017-05-05','4584', 1,'2017-05-19', 2, CURRENT_DATE;
+INSERT INTO rental (rental_date, inventory_id, customer_id, return_date, staff_id, last_update)
+SELECT'2017-05-05',
+    (SELECT inventory_id 
+     FROM inventory 
+     WHERE film_id = (SELECT film_id FROM film WHERE title = 'Avatar') LIMIT 1),
+    1,
+    '2017-05-19',
+    (SELECT staff_id 
+     FROM staff 
+     WHERE store_id = (SELECT store_id FROM store LIMIT 1) LIMIT 1),
+    CURRENT_DATE
+RETURNING rental_id, rental_date, inventory_id;
 
 ---Make payment for movie'Avatar'
 INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
-SELECT 1, 2, 32304, 9.99, '2017-05-19';
+SELECT 1, 
+	(SELECT staff_id 
+	 FROM staff 
+	 WHERE store_id = (SELECT store_id FROM store LIMIT 1) LIMIT 1),
+    (SELECT rental_id 
+     FROM rental 
+     WHERE inventory_id = (SELECT inventory_id 
+                           FROM inventory 
+                           WHERE film_id = (SELECT film_id FROM film WHERE title = 'Avatar'))),
+	 9.99,
+	'2017-05-19'
+RETURNING payment_id, customer_id, rental_id, amount;
 
 -- added a record for the movie 'Time'
+INSERT INTO rental (rental_date, inventory_id, customer_id, return_date, staff_id, last_update)
+SELECT '2017-05-01',
+    (SELECT inventory_id 
+     FROM inventory 
+     WHERE film_id = (SELECT film_id FROM film WHERE title = 'Time') LIMIT 1),
+    1,
+    '2017-05-30',
+    (SELECT staff_id 
+     FROM staff 
+     WHERE store_id = (SELECT store_id FROM store LIMIT 1) LIMIT 1),
+    CURRENT_DATE
+RETURNING rental_id, rental_date, inventory_id;
 
-INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id, last_update)
-SELECT '2017-05-01','4590', 1,'2017-05-30', 1, CURRENT_DATE;
 
 ---Make payment for movie 'Time'
 INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
-SELECT 1, 2, 32306, 19.99, '2017-05-30';
+SELECT 1, 
+     (SELECT staff_id 
+	 FROM staff 
+	 WHERE store_id = (SELECT store_id FROM store LIMIT 1) LIMIT 1),
+    (SELECT rental_id 
+     FROM rental 
+     WHERE inventory_id = (SELECT inventory_id 
+                           FROM inventory 
+                           WHERE film_id = (SELECT film_id FROM film WHERE title = 'Time'))), 
+	19.99, 
+	'2017-05-30'
+RETURNING payment_id, customer_id, rental_id, amount;
