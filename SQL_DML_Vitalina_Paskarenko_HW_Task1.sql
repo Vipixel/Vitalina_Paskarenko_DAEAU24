@@ -163,24 +163,47 @@ WHERE (first_name = 'Jim' AND last_name = 'Broadbent')
   AND title = 'Time';
 
 -------Added my favorite movies to any a store inventory
-------added film_id 1001,1002,1003
 
 INSERT INTO inventory (film_id, store_id, last_update)
-SELECT 1001, 1, CURRENT_DATE
+SELECT 
+(SELECT film_id
+FROM film
+WHERE title = 'Pretty Woman'), 
+(SELECT store_id
+FROM store
+WHERE address_id = 1), 
+CURRENT_DATE
 FROM film
 WHERE title = 'Pretty Woman';
 
 INSERT INTO inventory (film_id, store_id, last_update)
-SELECT 1002, 2, CURRENT_DATE
+SELECT 
+(SELECT film_id
+FROM film
+WHERE title = 'Avatar'), 
+(SELECT store_id
+FROM store
+WHERE address_id = 2),
+CURRENT_DATE
 FROM film
 WHERE title = 'Avatar';
 
 INSERT INTO inventory (film_id, store_id, last_update)
-SELECT 1003, 1, CURRENT_DATE
+SELECT 
+(SELECT film_id
+FROM film
+WHERE title = 'Time'),
+(SELECT store_id
+FROM store
+WHERE address_id = 1), 
+CURRENT_DATE
 FROM film
 WHERE title = 'Time';
 
+select*
+from store;
 -- Update the customer dynamically without hardcoding customer_id
+
 UPDATE customer
 SET first_name = 'Vitalina',
     last_name = 'Paskarenko',
@@ -194,17 +217,29 @@ WHERE customer_id =
     GROUP BY c.customer_id
     HAVING COUNT(DISTINCT r.rental_id) >= 43 AND COUNT(DISTINCT p.payment_id) >= 43
     LIMIT 1)
+AND NOT EXISTS (
+    SELECT 1
+    FROM customer
+    WHERE first_name = 'Vitalina'
+      AND last_name = 'Paskarenko'
+      AND email = 'polandmondol@gmail.com'
+      AND address_id = (SELECT address_id FROM address LIMIT 1))
 RETURNING customer_id, first_name, last_name, email, address_id;
 
------Removed records about customer_id 1 from tables(rental, payment)
-DELETE FROM payment
-WHERE customer_id = 1;
+-----Removed records about customer_id 1 from tables(payment,rental)
+DELETE FROM public.payment
+WHERE customer_id = (
+    SELECT customer_id
+    FROM public.customer
+    WHERE first_name = 'Vitalina' AND last_name = 'Paskarenko'
+    LIMIT 1);
 
 DELETE FROM rental
-WHERE customer_id = 1;
-
-DELETE FROM rental
-WHERE inventory_id = 4582;
+WHERE customer_id = (
+    SELECT customer_id
+    FROM customer
+    WHERE first_name = 'Vitalina' AND last_name = 'Paskarenko'
+    LIMIT 1);
 
 -- I needed to add a record in the rental table because without a rental_id, I can't create a payment for the movie 'Pretty Woman'
 
@@ -212,8 +247,10 @@ INSERT INTO rental ( rental_date,inventory_id, customer_id,return_date, staff_id
 SELECT '2017-05-15',
      (SELECT inventory_id 
      FROM inventory 
-     WHERE film_id = (SELECT film_id FROM film WHERE title = 'Pretty Woman')),
-     1,
+     WHERE film_id = (SELECT film_id FROM film WHERE title = 'Pretty Woman')LIMIT 1),
+     (SELECT customer_id
+     FROM customer
+     WHERE first_name = 'Vitalina' AND last_name = 'Paskarenko' LIMIT 1),
     '2017-05-23',
     (SELECT staff_id 
 	 FROM staff 
@@ -245,7 +282,9 @@ SELECT'2017-05-05',
     (SELECT inventory_id 
      FROM inventory 
      WHERE film_id = (SELECT film_id FROM film WHERE title = 'Avatar') LIMIT 1),
-    1,
+    (SELECT customer_id
+     FROM customer
+     WHERE first_name = 'Vitalina' AND last_name = 'Paskarenko' LIMIT 1),
     '2017-05-19',
     (SELECT staff_id 
      FROM staff 
@@ -274,7 +313,9 @@ SELECT '2017-05-01',
     (SELECT inventory_id 
      FROM inventory 
      WHERE film_id = (SELECT film_id FROM film WHERE title = 'Time') LIMIT 1),
-    1,
+    (SELECT customer_id
+     FROM customer
+     WHERE first_name = 'Vitalina' AND last_name = 'Paskarenko' LIMIT 1),
     '2017-05-30',
     (SELECT staff_id 
      FROM staff 
