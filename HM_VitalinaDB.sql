@@ -76,7 +76,6 @@ CREATE TABLE IF NOT EXISTS climb_a.climb_climber (
 	FOREIGN KEY (climber_id)  REFERENCES climb_a.climber (climber_id),
 	FOREIGN KEY (climb_id)  REFERENCES climb_a.climb (climb_id)
 	);
-
 ---Altering table to add constraints for climb_a.training
 ALTER TABLE climb_a.training
     ADD CONSTRAINT training_date CHECK (training_date > '2000-01-01'),
@@ -99,6 +98,33 @@ ALTER TABLE climb_a.weather
 ALTER TABLE climb_a.guide
     ALTER COLUMN name SET NOT NULL,
     ADD CONSTRAINT uq_phone_number UNIQUE (phone_number);
+	
+ALTER TABLE climb_a.climb
+ADD CONSTRAINT unique_climb UNIQUE (route_id, guide_id, weather_id, end_date);
+
+ALTER TABLE climb_a.route
+ADD CONSTRAINT unique_route_name UNIQUE (name);
+
+ALTER TABLE climb_a.mountain
+ADD CONSTRAINT unique_mountain_name UNIQUE (name);
+
+ALTER TABLE climb_a.area
+ADD CONSTRAINT unique_area_name UNIQUE (name);
+
+ALTER TABLE climb_a.guide
+ADD CONSTRAINT unique_guide_name UNIQUE (name);
+
+ALTER TABLE climb_a.training
+ADD CONSTRAINT unique_training_name UNIQUE (training_name);
+
+ALTER TABLE climb_a.training
+ADD COLUMN duration_in_minutes INT GENERATED ALWAYS AS (
+    EXTRACT(EPOCH FROM duration) / 60
+) STORED;
+
+ALTER TABLE climb_a.climber_traning
+ADD CONSTRAINT unique_climber_traning UNIQUE (climber_id, training_id);
+
 -----Changing the type of duration because TIME is not what I need for this table
 ALTER TABLE climb_a.training
     ALTER COLUMN duration TYPE INTERVAL;
@@ -106,57 +132,114 @@ ALTER TABLE climb_a.training
 INSERT INTO climb_a.training (training_name, training_date, location, duration)
 VALUES 
     ('Climbing Basics', '2024-03-15', 'TatraCamp',INTERVAL '2 hours'),
-    ('Advanced Climbing', '2024-04-05', 'Training Base',INTERVAL '3 hours');
+    ('Advanced Climbing', '2024-04-05', 'Training Base',INTERVAL '3 hours')
+	ON CONFLICT(training_name) DO NOTHING;
 
 INSERT INTO climb_a.equipment (e_description)
 VALUES 
     ('Climbing rope set'),
-    ('Safety harness');
+    ('Safety harness')
+	ON CONFLICT DO NOTHING;
 	
 ----Changing type of birth date 
 ALTER TABLE climb_a.climber
     DROP CONSTRAINT IF EXISTS chk_birth_date,
     ADD CONSTRAINT chk_birth_date CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years');
 -----
-INSERT INTO climb_a.climber ( name, adress, birth_date, medical_notes,gender)
-VALUES 
-    ('Dagmara Rzeszanska', 'Franciszkanska 4', '1990-06-15', 'No issues','F'),
-    ('Marek Mroz', 'Pokorna 1533', '1995-10-20', 'Knee injury','M');
 
-select* from climb_a.climber_traning;
+INSERT INTO climb_a.climber (climber_id, name, adress, birth_date, medical_notes, gender, record_ts)
+SELECT 3, 'Dagmara Rzeszanska', 'Franciszkanska 4', '1990-06-15', 'No issues', 'F', CURRENT_DATE
+WHERE NOT EXISTS (
+    SELECT 1 FROM climb_a.climber 
+    WHERE name = 'Dagmara Rzeszanska' AND birth_date = '1990-06-15');
+
+INSERT INTO climb_a.climber (climber_id, name, adress, birth_date, medical_notes, gender, record_ts)
+SELECT 4, 'Marek Mroz', 'Pokorna 1533', '1995-10-20', 'Knee injury', 'M', CURRENT_DATE
+WHERE NOT EXISTS (
+    SELECT 1 FROM climb_a.climber 
+    WHERE name = 'Marek Mroz' AND birth_date = '1995-10-20');
+
+
 INSERT INTO climb_a.climber_traning (climber_id, training_id)
 VALUES 
-    (1, 102),
-    (2, 101);
+    (3, 101), 
+    (4, 102) 
+ON CONFLICT (climber_id, training_id)DO NOTHING;
+
+select *
+from climb_a.climber_traning;
+
 INSERT INTO climb_a.weather (temperature, humidity, wind_speed, conditions)
 VALUES 
     (15.5, 60.0, 5.5, 'Sunny'),
     (10.0, 75.0, 8.0, 'Cloudy');
-
+	
 INSERT INTO climb_a.guide (name, phone_number)
 VALUES 
     ('Magda Pierog', '653241989'),
-    ('Marek Bradz', '538823759');
+    ('Marek Bradz', '538823759')
+	ON CONFLICT ( name) DO NOTHING;
 	
 INSERT INTO climb_a.area (name, area_info)
 VALUES 
     ('Morskie Oko', 'Moderate difficulty'),
-    ('Sarnia Skala', 'Challenging routes');
+    ('Sarnia Skala', 'Challenging routes')
+	ON CONFLICT ( name) DO NOTHING;
 
-INSERT INTO climb_a.mountain ( name, height, area_id)
+INSERT INTO climb_a.mountain ( name, height)
 VALUES 
-    ('Rysy', 2499.0, 01),
-    ('Giewont', 1894.0, 02);
+    ('Rysy', 2499.0),
+    ('Giewont', 1894.0)
+	ON CONFLICT ( name) DO NOTHING;
 
 INSERT INTO climb_a.route ( name)
 VALUES 
     ('Tatra '),
-    ('Droga pod Reglami');
+    ('Droga pod Reglami')
+	ON CONFLICT ( name) DO NOTHING;
 
-INSERT INTO climb_a.climb (climb_id,route_id, guide_id, weather_id, end_date)
-VALUES 
-    (1,1, 1, 1, '2024-03-19'),
-    (2,2, 2, 2, '2024-03-26');
+DELETE FROM climb_a.weather;
+
+select *
+from climb_a.weather;
+
+INSERT INTO climb_a.climb (route_id, guide_id, weather_id, end_date)
+SELECT 
+    r.route_id,
+    g.guide_id,
+    w.weather_id,
+    '2024-03-19'
+FROM 
+    climb_a.route r,
+    climb_a.guide g,
+    climb_a.weather w
+WHERE 
+    r.name = 'Tatra' AND 
+    g.name = 'Magda Pierog' AND 
+    w.conditions = 'Sunny'
+ON CONFLICT DO NOTHING;
+
+
+INSERT INTO climb_a.climb (route_id, guide_id, weather_id, end_date)
+SELECT 
+    r.route_id,
+    g.guide_id,
+    w.weather_id,
+    '2024-03-26'
+FROM 
+    climb_a.route r,
+    climb_a.guide g,
+    climb_a.weather w
+WHERE 
+    r.name = 'Droga pod Reglami' AND 
+    g.name = 'Marek Bradz' AND 
+    w.conditions = 'Cloudy'
+ON CONFLICT DO NOTHING;
+
+
+select*
+from climb_a.climber;
+
 
 ------Add a not null 'record_ts' field to each table 
 ALTER TABLE climb_a.training
