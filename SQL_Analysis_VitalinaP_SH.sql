@@ -42,10 +42,16 @@ ORDER BY avg_quantity DESC;
 
 -- Find the top five customers with the highest total sales amount
 
-SELECT c.cust_first_name, c.cust_last_name, SUM(quantity_sold*amount_sold) as sales_amount 
+SELECT c.cust_id, SUM(quantity_sold*amount_sold) as sales_amount 
 FROM sh.customers c
 JOIN sh.sales s ON s.cust_id = c.cust_id
-GROUP BY c.cust_first_name, c.cust_last_name
+group by c.cust_id
 ORDER BY sales_amount DESC
-LIMIT 5;
+LIMIT 5; 
+
+------16 tess drumm
+SELECT c.cust_id, c.cust_first_name, c.cust_last_name
+FROM sh.customers c
+WHERE LOWER(c.cust_first_name) = 'tess'
+AND LOWER(c.cust_last_name) = 'drumm';
 
