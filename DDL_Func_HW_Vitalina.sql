@@ -2,7 +2,7 @@
 
 CREATE VIEW sales_revenue_by_category_qtr AS
 SELECT c.name AS category_name,  SUM(p.amount) AS sales_revenue_qtr
-FROM category c
+FROM public.category c
 JOIN film_category fc ON c.category_id = fc.category_id
 JOIN inventory i ON fc.film_id = i.film_id
 JOIN rental r ON i.inventory_id = r.inventory_id
@@ -31,7 +31,7 @@ BEGIN
     SELECT 
         c.name AS category_name,
         SUM(p.amount) AS sales_revenue
-    FROM category c
+    FROM public.category c
     JOIN film_category fc ON c.category_id = fc.category_id
     JOIN inventory i ON fc.film_id = i.film_id
     JOIN rental r ON i.inventory_id = r.inventory_id
@@ -71,17 +71,19 @@ BEGIN
         l.name::TEXT AS language,
         f.length::INT AS length,
         f.release_year::INT AS release_year
-    FROM country c
-    JOIN city ct ON c.country_id = ct.country_id
-    JOIN address a ON a.city_id = ct.city_id
-    JOIN store s ON a.address_id = s.address_id
-    JOIN rental r ON s.store_id = r.staff_id 
-    JOIN film f ON r.rental_id = f.film_id
-    JOIN language l ON f.language_id = l.language_id
+    FROM public.film f
+	JOIN language l ON f.language_id = l.language_id
+	JOIN inventory i ON f.film_id =i.film_id
+	JOIN rental r ON i.inventory_id = r.inventory_id
+    JOIN store s ON i.store_id = s.store_id
+	JOIN staff sf on i.store_id = sf.store_id
+    JOIN address a ON sf.address_id = a.address_id
+	JOIN city ct ON a.city_id = ct.city_id
+	JOIN country c ON ct.country_id=c.country_id
     WHERE LOWER(c.country) = ANY(ARRAY(SELECT LOWER(cname) FROM UNNEST(countries) AS cname))
     GROUP BY c.country, f.title, f.rating, l.name, f.length, f.release_year
     ORDER BY c.country, COUNT(r.rental_id) DESC
-	FETCH FIRST 1 ROW ONLY;
+	FETCH FIRST 100 ROW ONLY;
 END;
 $$;
 -----to check if it is work
@@ -130,13 +132,60 @@ $$;
 ----checked if this function work
 SELECT * FROM films_in_stock_by_title('%love%');
 
+-----Task 4
+
+DROP FUNCTION IF EXISTS films_in_stock_by_title(TEXT);
+
+CREATE OR REPLACE FUNCTION films_in_stock_by_title(
+    title_f TEXT
+)
+RETURNS TABLE (
+    row_num BIGINT,
+    title VARCHAR,
+    language VARCHAR,
+    customer VARCHAR,
+    rental_date TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        row_number() OVER (ORDER BY f.title) AS row_num,
+        f.title::VARCHAR AS title,
+        l.name::VARCHAR AS language,
+        CONCAT(c.first_name, ' ', c.last_name)::VARCHAR AS customer,
+        r.rental_date
+    FROM public.film f
+    JOIN inventory i ON f.film_id = i.film_id
+    JOIN rental r ON i.inventory_id = r.inventory_id
+    JOIN payment p ON r.rental_id = p.rental_id
+    JOIN customer c ON r.customer_id = c.customer_id
+    JOIN language l ON f.language_id = l.language_id
+    WHERE f.title ILIKE title_f 
+      AND NOT EXISTS (
+          SELECT 1 
+          FROM rental r2
+          WHERE r2.inventory_id = i.inventory_id
+            AND r2.return_date IS NULL
+      );
+    -- If no movies are found will show a notice
+    IF NOT FOUND THEN
+        RAISE NOTICE 'No movies matching the title "%".', title_f;
+    END IF;
+END;
+$$;
+
+----checked if this function work
+SELECT * FROM films_in_stock_by_title('%love%');
+
 ----insered new language
-INSERT INTO language (name) VALUES ('Klingon');
-----
+
 CREATE OR REPLACE FUNCTION new_movie(
     movie_title TEXT,
     release_year INT DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INT,
-    language_name TEXT DEFAULT 'Klingon')
+    language_name TEXT DEFAULT 'Klingon'
+)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -144,14 +193,23 @@ DECLARE
     new_film_id INT;
     lang_id INT; 
 BEGIN
------Ensure the language exists in the language table
+----- Ensure the language exists in the language table
+    IF NOT EXISTS (
+        SELECT 1
+        FROM language l
+        WHERE l.name = language_name
+    ) THEN
+        INSERT INTO language (name)
+        VALUES (language_name);
+    END IF;
+------- Retrieve the language 
     SELECT l.language_id INTO lang_id
     FROM language l
     WHERE l.name = language_name;
-----created to generate a new unique film ID
-    SELECT COALESCE(MAX(f.film_id), 0) + 1 INTO new_film_id FROM film f;
+	
+    SELECT COALESCE(MAX(f.film_id), 0) + 1 INTO new_film_id FROM public.film f;
 
-----Insert the new movie into the film table
+    -- Insert the new movie into the film table
     INSERT INTO film (
         film_id,
         title,
@@ -173,9 +231,6 @@ BEGIN
     );
 END;
 $$;
-
------tested if it is work
-SELECT new_movie('Star 2 Trek Adventures');
 
 SELECT * 
 FROM film
