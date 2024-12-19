@@ -110,7 +110,7 @@ BEGIN
         l.name::VARCHAR AS language,
         CONCAT(c.first_name, ' ', c.last_name)::VARCHAR AS customer,
         r.rental_date
-    FROM film f
+    FROM public.film 
     JOIN inventory i ON f.film_id = i.film_id
     JOIN rental r ON i.inventory_id = r.inventory_id
     JOIN payment p ON r.rental_id = p.rental_id
