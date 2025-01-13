@@ -1,3 +1,12 @@
+
+WITH CTE AS (
+    SELECT Employee_ID, 
+        Salary,
+        ROW_NUMBER() OVER (PARTITION BY Employee_ID ORDER BY Employee_ID) AS RowNum
+    FROM Employees)
+DELETE FROM Employees
+WHERE Employee_ID IN (SELECT Employee_ID FROM CTE
+WHERE RowNum > 1);
 -----task 1 
 
 CREATE VIEW sales_revenue_by_category_qtr AS
@@ -12,8 +21,7 @@ WHERE
     AND EXTRACT(QUARTER FROM p.payment_date) = 1
 GROUP BY c.name
 HAVING SUM(p.amount) > 0;
----Tried if this work
-
+---
 SELECT * 
 FROM sales_revenue_by_category_qtr
 WHERE category_name = 'Action';
@@ -44,7 +52,7 @@ BEGIN
         SUM(p.amount) > 0;
 END;
 $$;
----Tried if this work
+---check if this work
 SELECT * 
 FROM get_sales_revenue_by_category_qtr(2017, 2);
 ------Task 3
