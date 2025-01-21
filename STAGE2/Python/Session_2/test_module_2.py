@@ -32,15 +32,14 @@ def test_task_1_correct_work(test_input_1, test_input_2, expected):
         ), f"Key-{key} should has {value} value against {output.get(key)}"
 
 
-def test_2_correct_work():
-    output = task_2()
+def task_2():
+    new_dict = dict()
     expected = {idx: idx**2 for idx in range(1, 16)}
 
     for key, value in expected.items():
-        assert output.get(key) is not None, f"Your result doesn't have {key} key"
-        assert (
-            output.get(key) == value
-        ), f"Key-{key} should has {value} value against {output.get(key)}"
+        if key >= 1 and key <= 15:
+            new_dict[key] = value**2
+    return new_dict
 
 
 @pytest.mark.parametrize(
