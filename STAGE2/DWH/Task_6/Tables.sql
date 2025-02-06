@@ -27,24 +27,13 @@ CREATE TABLE IF NOT EXISTS BL_3NF.CE_PRODUCTS (
     source_system VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS BL_3NF.CE_ADDRESSES (
-    address_id BIGINT PRIMARY KEY,
-    state VARCHAR(5) NOT NULL,
-    street VARCHAR(20),
-    postal_n VARCHAR(8),
-    source_id VARCHAR(100) NOT NULL,
-    source_entity VARCHAR(100) NOT NULL,
-    source_system VARCHAR(100) NOT NULL
-);
 
 CREATE TABLE IF NOT EXISTS BL_3NF.CE_CUSTOMER_SCD (
     customer_id BIGINT PRIMARY KEY,
-    customer_name VARCHAR(15) NOT NULL,
     customer_age INT,
     customer_level VARCHAR(15),
     gender VARCHAR(10),
     customer_income INT,
-    address_id INT REFERENCES BL_3NF.CE_ADDRESSES(address_id),
     source_id VARCHAR(100) NOT NULL,
     source_entity VARCHAR(100) NOT NULL,
     source_system VARCHAR(100) NOT NULL
@@ -76,7 +65,7 @@ CREATE TABLE IF NOT EXISTS BL_3NF.CE_PROMOTION (
 );
 
 CREATE TABLE IF NOT EXISTS BL_3NF.CE_SALES_DD (
-    transaction_id BIGINT PRIMARY KEY,
+    t_id BIGINT PRIMARY KEY,
     customer_id INT REFERENCES BL_3NF.CE_CUSTOMER_SCD(customer_id),
     store_id INT REFERENCES BL_3NF.CE_STORES(store_id),
     date_id INT REFERENCES BL_3NF.CE_DATES(date_id),
