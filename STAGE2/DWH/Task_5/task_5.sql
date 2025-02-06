@@ -2,7 +2,7 @@
 
 CREATE SCHEMA IF NOT EXISTS sa_offline_sales;
 
-CREATE EXTENSION IF NOT EXISTS file_fdw; 
+CREATE EXTENSION IF NOT EXISTS file_fdw;
 
 -- Create a server for file_fdw
 
@@ -48,10 +48,6 @@ SELECT * FROM sa_offline_sales.ext_offline_sales
 
 CREATE SCHEMA IF NOT EXISTS sa_online_sales;
 
--- Create server for file_fdw
-
-CREATE SERVER IF NOT EXISTS sa_online_sales_server FOREIGN DATA WRAPPER file_fdw;
-
 -- Define the foreign table
 
 CREATE FOREIGN TABLE IF NOT EXISTS sa_online_sales.ext_online_sales (
@@ -83,7 +79,6 @@ OPTIONS (
     encoding 'UTF8'
 );
 
-SELECT * FROM sa_online_sales.ext_online_sales
 
 -- create source tables
 
@@ -108,8 +103,46 @@ CREATE TABLE IF NOT EXISTS sa_offline_sales.src_offline_sales (
   payment_method VARCHAR(3000)
 );
 
-INSERT INTO sa_offline_sales.src_offline_sales
-SELECT * FROM sa_offline_sales.ext_offline_sales;
+INSERT INTO sa_offline_sales.src_offline_sales (
+    t_id,
+    customer_id,
+    product_id,
+    product_name,
+    category,
+    quantity_sold,
+    unit_price,
+    transaction_date,
+    time,
+    store_id,
+    store_location,
+    state,
+    supplier_id,
+    supplier_lead,
+    customer_age,
+    customer_gender,
+    customer_income,
+    payment_method
+)
+SELECT
+    t_id,
+    customer_id,
+    product_id,
+    product_name,
+    category,
+    quantity_sold,
+    unit_price,
+    transaction_date,
+    time,
+    store_id,
+    store_location,
+    state,
+    supplier_id,
+    supplier_lead,
+    customer_age,
+    customer_gender,
+    customer_income,
+    payment_method
+FROM sa_offline_sales.ext_offline_sales;
 
 -- create source tables
 
@@ -132,5 +165,39 @@ CREATE TABLE IF NOT EXISTS sa_online_sales.src_online_sales (
   promotion_applied VARCHAR(3000)
 );
 
-INSERT INTO sa_online_sales.src_online_sales
-SELECT * FROM sa_online_sales.ext_online_sales;
+INSERT INTO sa_online_sales.src_online_sales (
+    transaction_id,
+    customer_id,
+    product_id,
+    product_name,
+    category,
+    quantity_sold,
+    unit_price,
+    day,
+    month,
+    year,
+    store,
+    store_location,
+    category_code,
+    supplier_id,
+    customer_level,
+    promotion_applied
+)
+SELECT
+    transaction_id,
+    customer_id,
+    product_id,
+    product_name,
+    category,
+    quantity_sold,
+    unit_price,
+    day,
+    month,
+    year,
+    store,
+    store_location,
+    category_code,
+    supplier_id,
+    customer_level,
+    promotion_applied
+FROM sa_online_sales.ext_online_sales;
