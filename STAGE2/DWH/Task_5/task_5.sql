@@ -123,7 +123,7 @@ INSERT INTO sa_offline_sales.src_offline_sales (
     customer_income,
     payment_method
 )
-SELECT
+SELECT DISTINCT
     t_id,
     customer_id,
     product_id,
@@ -183,7 +183,7 @@ INSERT INTO sa_online_sales.src_online_sales (
     customer_level,
     promotion_applied
 )
-SELECT
+SELECT DISTINCT
     transaction_id,
     customer_id,
     product_id,
