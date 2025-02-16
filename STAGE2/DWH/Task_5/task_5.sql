@@ -123,26 +123,31 @@ INSERT INTO sa_offline_sales.src_offline_sales (
     customer_income,
     payment_method
 )
-SELECT DISTINCT
-    t_id,
-    customer_id,
-    product_id,
-    product_name,
-    category,
-    quantity_sold,
-    unit_price,
-    transaction_date,
-    time,
-    store_id,
-    store_location,
-    state,
-    supplier_id,
-    supplier_lead,
-    customer_age,
-    customer_gender,
-    customer_income,
-    payment_method
-FROM sa_offline_sales.ext_offline_sales;
+SELECT
+    e.t_id,
+    e.customer_id,
+    e.product_id,
+    e.product_name,
+    e.category,
+    e.quantity_sold,
+    e.unit_price,
+    e.transaction_date,
+    e.time,
+    e.store_id,
+    e.store_location,
+    e.state,
+    e.supplier_id,
+    e.supplier_lead,
+    e.customer_age,
+    e.customer_gender,
+    e.customer_income,
+    e.payment_method
+FROM sa_offline_sales.ext_offline_sales e
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM sa_offline_sales.src_offline_sales s
+    WHERE s.t_id = e.t_id
+);
 
 -- create source tables
 
@@ -183,21 +188,26 @@ INSERT INTO sa_online_sales.src_online_sales (
     customer_level,
     promotion_applied
 )
-SELECT DISTINCT
-    transaction_id,
-    customer_id,
-    product_id,
-    product_name,
-    category,
-    quantity_sold,
-    unit_price,
-    day,
-    month,
-    year,
-    store,
-    store_location,
-    category_code,
-    supplier_id,
-    customer_level,
-    promotion_applied
-FROM sa_online_sales.ext_online_sales;
+SELECT
+    e.transaction_id,
+    e.customer_id,
+    e.product_id,
+    e.product_name,
+    e.category,
+    e.quantity_sold,
+    e.unit_price,
+    e.day,
+    e.month,
+    e.year,
+    e.store,
+    e.store_location,
+    e.category_code,
+    e.supplier_id,
+    e.customer_level,
+    e.promotion_applied
+FROM sa_online_sales.ext_online_sales e
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM sa_online_sales.src_online_sales s
+    WHERE s.transaction_id = e.transaction_id
+);
