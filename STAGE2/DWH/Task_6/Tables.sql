@@ -49,7 +49,6 @@ CREATE TABLE IF NOT EXISTS BL_3NF.CE_STORES (
 );
 
 CREATE TABLE IF NOT EXISTS BL_3NF.CE_DATES (
-    date_id BIGINT PRIMARY KEY,
     transaction_date DATE NOT NULL,
     source_id VARCHAR(100) NOT NULL,
     source_entity VARCHAR(100) NOT NULL,
@@ -68,7 +67,6 @@ CREATE TABLE IF NOT EXISTS BL_3NF.CE_SALES_DD (
     t_id BIGINT PRIMARY KEY,
     customer_id INT REFERENCES BL_3NF.CE_CUSTOMER_SCD(customer_id),
     store_id INT REFERENCES BL_3NF.CE_STORES(store_id),
-    date_id INT REFERENCES BL_3NF.CE_DATES(date_id),
     product_id INT REFERENCES BL_3NF.CE_PRODUCTS(product_id),
     time TIME NOT NULL,
     promotion_id INT REFERENCES BL_3NF.CE_PROMOTION(promotion_id),

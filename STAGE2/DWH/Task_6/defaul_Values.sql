@@ -60,21 +60,21 @@ WHERE NOT EXISTS (
 );
 COMMIT;
 
-INSERT INTO BL_3NF.CE_DATES (date_id, transaction_date, source_id, source_entity, source_system)
-SELECT date_id, transaction_date, source_id, source_entity, source_system
+INSERT INTO BL_3NF.CE_DATES ( transaction_date, source_id, source_entity, source_system)
+SELECT transaction_date, source_id, source_entity, source_system
 FROM 
-(VALUES (-1, '1900-01-01'::DATE, 1900, 1, 1, '-1', 'MANUAL', 'MANUAL'))
-AS default_row(date_id, transaction_date, source_id, source_entity, source_system)
+(VALUES ('1900-01-01'::DATE, 1900, 1, 1, '-1', 'MANUAL', 'MANUAL'))
+AS default_row( transaction_date, source_id, source_entity, source_system)
 WHERE NOT EXISTS (
     SELECT 1 FROM BL_3NF.CE_DATES WHERE BL_3NF.CE_DATES.date_id = default_row.date_id
 );
 COMMIT;
 
-INSERT INTO BL_3NF.CE_SALES_DD (t_id, customer_id, store_id, date_id, product_id, time, promotion_id, unit_price, quantity_sold, source_id, source_entity, source_system)
-SELECT t_id, customer_id, store_id, date_id, product_id, time, promotion_id, unit_price, quantity_sold, source_id, source_entity, source_system
+INSERT INTO BL_3NF.CE_SALES_DD (t_id, customer_id, store_id,  product_id, time, promotion_id, unit_price, quantity_sold, source_id, source_entity, source_system)
+SELECT t_id, customer_id, store_id, product_id, time, promotion_id, unit_price, quantity_sold, source_id, source_entity, source_system
 FROM
-(VALUES (-1, -1, -1, -1, -1, '00:00:00'::TIME, -1, 0.00, 0, '-1', 'MANUAL', 'MANUAL')) 
-AS default_row(t_id, customer_id, store_id, date_id, product_id, time, promotion_id, unit_price, quantity_sold, source_id, source_entity, source_system)
+(VALUES (-1, -1, -1, -1, '00:00:00'::TIME, -1, 0.00, 0, '-1', 'MANUAL', 'MANUAL')) 
+AS default_row(t_id, customer_id, store_id,  product_id, time, promotion_id, unit_price, quantity_sold, source_id, source_entity, source_system)
 WHERE NOT EXISTS (
     SELECT 1 FROM BL_3NF.CE_SALES_DD WHERE BL_3NF.CE_SALES_DD.t_id = default_row.t_id
 );
