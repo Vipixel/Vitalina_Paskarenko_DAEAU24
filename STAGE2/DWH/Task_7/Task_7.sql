@@ -1,13 +1,17 @@
+-- Begin the transaction
 BEGIN;
+
+-- Create the BL_DM schema if it does not already exist
 
 CREATE SCHEMA IF NOT EXISTS BL_DM;
 
 ------------------------------------------------------------------------------
 -- DIM_CUSTOMER_SCD
+-- This table stores customer information, including historical changes (SCD Type 2)
 
 CREATE TABLE IF NOT EXISTS BL_DM.DIM_CUSTOMER_SCD (
-    customer_surr_id  BIGINT       NOT NULL PRIMARY KEY,
-    customer_id       BIGINT,
+    customer_surr_id  BIGINT      PRIMARY KEY,  ---- surrogate key
+    customer_id       BIGINT,  ---- natural key
     customer_src_id   VARCHAR(100),
     customer_name     VARCHAR(50),
     customer_age      INT,
@@ -40,7 +44,7 @@ INSERT INTO BL_DM.DIM_CUSTOMER_SCD (
 SELECT
     0,
     -1,
-    COALESCE(NULL, 'UNKNOWN'),
+    'UNKNOWN',
     'Unknown',
     -1,
     'Unknown',
@@ -59,10 +63,11 @@ WHERE NOT EXISTS (
 
 ------------------------------------------------------------------------------
 -- DIM_PRODUCT_SUPPLIER
+-- This table stores cproduct details and supplier information
 
 CREATE TABLE IF NOT EXISTS BL_DM.DIM_PRODUCT_SUPPLIER (
-    product_surr_id   BIGINT       NOT NULL PRIMARY KEY,
-    product_id        BIGINT,
+    product_surr_id   BIGINT      PRIMARY KEY, ---- surrogate key
+    product_id        BIGINT,  ---- natural key
     product_src_id    VARCHAR(100),
     product_name      VARCHAR(50),
     category_id       BIGINT,
@@ -76,9 +81,10 @@ CREATE TABLE IF NOT EXISTS BL_DM.DIM_PRODUCT_SUPPLIER (
 );
 
 -- Default row
+-----In this row represents an "Unknown" product and is used to handle cases where product data is missing
 INSERT INTO BL_DM.DIM_PRODUCT_SUPPLIER (
-    product_surr_id,
-    product_id,
+    product_surr_id,  ---- surrogate key
+    product_id,  ---- natural key
     product_src_id,
     product_name,
     category_id,
@@ -108,12 +114,15 @@ WHERE NOT EXISTS (
     WHERE product_surr_id = 0
 );
 
+COMMIT;
+
 ------------------------------------------------------------------------------
 -- DIM_STORES
+-- This table stores details about stores
 
 CREATE TABLE IF NOT EXISTS BL_DM.DIM_STORES (
-    store_surr_id   BIGINT      NOT NULL PRIMARY KEY,
-    store_id        BIGINT,
+    store_surr_id   BIGINT      PRIMARY KEY,  ---- surrogate key
+    store_id        BIGINT,  ---- natural key
     store_src_id    VARCHAR(100),
     store_location  VARCHAR(50),
     state           VARCHAR(2),
@@ -144,11 +153,13 @@ WHERE NOT EXISTS (
     WHERE store_surr_id = 0
 );
 
+COMMIT;
+
 -----------------------------------------------------------------------------
 -- DIM_DATES
 
 CREATE TABLE IF NOT EXISTS BL_DM.DIM_DATES (
-    date_dt      DATE  NOT NULL PRIMARY KEY,
+    date_dt      DATE PRIMARY KEY,  ---- date (primary key)
     day_of_week  INT,
     day_of_month INT,
     day_of_year  INT,
@@ -158,39 +169,15 @@ CREATE TABLE IF NOT EXISTS BL_DM.DIM_DATES (
     year         INT
 );
 
--- Default row 
-
-INSERT INTO BL_DM.DIM_DATES (
-    date_dt,
-    day_of_week,
-    day_of_month,
-    day_of_year,
-    week_of_year,
-    month,
-    quarter,
-    year
-)
-SELECT
-    '1900-01-01',
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1
-WHERE NOT EXISTS (
-    SELECT 1 FROM BL_DM.DIM_DATES
-    WHERE date_dt = '1900-01-01'
-);
-
+COMMIT;
 
 ------------------------------------------------------------------------------
 -- DIM_PROMOTION
+-- This table stores details about promotions
 
 CREATE TABLE IF NOT EXISTS BL_DM.DIM_PROMOTION (
-    promotion_surr_id  BIGINT       NOT NULL PRIMARY KEY,
-    promotion_id       BIGINT,
+    promotion_surr_id  BIGINT       PRIMARY KEY, ---- surrogate key
+    promotion_id       BIGINT, ---- natural key
     promotion_src_id   VARCHAR(100),
     promotion_applied  VARCHAR(50),
     insert_dt          DATE,
@@ -218,11 +205,14 @@ WHERE NOT EXISTS (
     WHERE promotion_surr_id = 0
 );
 
+COMMIT;
+
 ------------------------------------------------------------------------------
 -- FCT_SALES_DD
+-- This table stores sales transactions and links to relevant dimensions
 
 CREATE TABLE IF NOT EXISTS BL_DM.FCT_SALES_DD (
-    transaction_id     BIGINT    NOT NULL,
+    transaction_id     BIGINT    NOT NULL, -- Unique identifier for the transaction
     transaction_src_id VARCHAR(100),
     customer_surr_id   BIGINT,
     store_surr_id      BIGINT,
@@ -256,5 +246,7 @@ CREATE TABLE IF NOT EXISTS BL_DM.FCT_SALES_DD (
        REFERENCES BL_DM.DIM_PROMOTION(promotion_surr_id)
 );
 
+
+-- Commit the transaction
 COMMIT;
 
