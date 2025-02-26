@@ -310,65 +310,49 @@ CREATE OR REPLACE PROCEDURE BL_CL.load_fct_sales_dd()
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    rec RECORD;
     rows_inserted INT := 0;
 BEGIN
-    FOR rec IN
-        SELECT
-            s.t_id                AS transaction_id,
-            c.customer_surr_id    AS customer_surr_id,
-            st.store_surr_id      AS store_surr_id,
-            p.product_surr_id     AS product_surr_id,
-            pr.promotion_surr_id  AS promotion_surr_id,
-            s.quantity_sold,
-            (s.quantity_sold * p.unit_price) AS total_cost,
-            s.time,
-            s.source_entity,
-            s.source_system
-        FROM BL_3NF.CE_SALES s
-             LEFT JOIN BL_DM.DIM_CUSTOMER_SCD c 
-                ON s.customer_id = c.customer_id
-             LEFT JOIN BL_DM.DIM_STORES st
-                ON s.store_id = st.store_id
-             LEFT JOIN BL_DM.DIM_PRODUCT_SUPPLIER p
-                ON s.product_id = p.product_id
-             LEFT JOIN BL_DM.DIM_PROMOTION pr
-                ON s.promotion_id = pr.promotion_id
-        WHERE s.t_id IS NOT NULL
-    LOOP
-        IF NOT EXISTS (
-            SELECT 1
-              FROM BL_DM.FCT_SALES_DD
-             WHERE transaction_id = rec.transaction_id
-        ) THEN
-            INSERT INTO BL_DM.FCT_SALES_DD
-                ( transaction_id
-                , customer_surr_id
-                , store_surr_id
-                , product_surr_id
-                , promotion_surr_id
-                , quantity_sold
-                , total_cost
-                , time
-                , source_entity
-                , source_system
-                )
-            VALUES
-                ( rec.transaction_id
-                , rec.customer_surr_id
-                , rec.store_surr_id
-                , rec.product_surr_id
-                , rec.promotion_surr_id
-                , rec.quantity_sold
-                , rec.total_cost
-                , rec.time
-                , rec.source_entity
-                , rec.source_system
-                );
+    INSERT INTO BL_DM.FCT_SALES_DD
+        ( transaction_id
+        , customer_surr_id
+        , store_surr_id
+        , product_surr_id
+        , promotion_surr_id
+        , quantity_sold
+        , total_cost
+        , time
+        , source_entity
+        , source_system
+        )
+    SELECT
+        s.t_id                AS transaction_id,
+        c.customer_surr_id    AS customer_surr_id,
+        st.store_surr_id      AS store_surr_id,
+        p.product_surr_id     AS product_surr_id,
+        pr.promotion_surr_id  AS promotion_surr_id,
+        s.quantity_sold,
+        (s.quantity_sold * p.unit_price) AS total_cost,
+        s.time::TIME          AS time, 
+        s.source_entity,
+        s.source_system
+    FROM BL_3NF.CE_SALES s
+         LEFT JOIN BL_DM.DIM_CUSTOMER_SCD c 
+            ON s.customer_id = c.customer_id
+         LEFT JOIN BL_DM.DIM_STORES st
+            ON s.store_id = st.store_id
+         LEFT JOIN BL_DM.DIM_PRODUCT_SUPPLIER p
+            ON s.product_id = p.product_id
+         LEFT JOIN BL_DM.DIM_PROMOTION pr
+            ON s.promotion_id = pr.promotion_id
+    WHERE s.t_id IS NOT NULL
+      AND NOT EXISTS (
+          SELECT 1
+            FROM BL_DM.FCT_SALES_DD f
+           WHERE f.transaction_id = s.t_id
+      );
 
-            rows_inserted := rows_inserted + 1;
-        END IF;
-    END LOOP;
+    -- Get the number of rows inserted to understand
+    GET DIAGNOSTICS rows_inserted = ROW_COUNT;
 
     RAISE NOTICE 'Finished load_fct_sales_dd(); total rows inserted = %', rows_inserted;
 END;
@@ -390,7 +374,10 @@ SELECT * FROM BL_DM.DIM_PROMOTION LIMIT 10;
 CALL BL_CL.load_dim_stores();
 SELECT * FROM BL_DM.DIM_STORES LIMIT 10;
 
+-- Load DM_PRODUCT_SUPPLIER
+CALL BL_CL.load_dim_product_supplier();
+SELECT * FROM BL_DM.DIM_PRODUCT_SUPPLIER LIMIT 10;
+
 -- Load FCT_SALES_DD
 CALL BL_CL.load_fct_sales_dd();
 SELECT * FROM BL_DM.FCT_SALES_DD ;
-
