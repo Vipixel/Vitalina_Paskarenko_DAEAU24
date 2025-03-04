@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS BL_3NF;
 
 -- Create procedure to create tables
-CREATE OR REPLACE PROCEDURE public.create_bl_3nf_and_tables_procedure()
+CREATE OR REPLACE PROCEDURE bl_3nf.create_bl_3nf_and_tables_procedure()
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -82,6 +82,7 @@ BEGIN
         time TIME NOT NULL,
         promotion_id BIGINT REFERENCES BL_3NF.CE_PROMOTION(promotion_id),
         unit_price DECIMAL(10,2) NOT NULL,
+        transaction_date DATE,
         quantity_sold INT NOT NULL,
         source_id VARCHAR(100) NOT NULL,
         source_entity VARCHAR(100) NOT NULL,
@@ -97,4 +98,4 @@ END;
 $$;
 
 -- Call the procedure to create the tables
-CALL public.create_bl_3nf_and_tables_procedure();
+CALL pbl_3nf.create_bl_3nf_and_tables_procedure();

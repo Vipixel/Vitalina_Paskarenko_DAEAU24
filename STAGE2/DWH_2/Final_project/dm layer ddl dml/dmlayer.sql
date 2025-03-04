@@ -84,7 +84,7 @@ BEGIN
         transaction_src_id VARCHAR(100),
         customer_surr_id   BIGINT REFERENCES BL_DM.DIM_CUSTOMER_SCD(customer_surr_id),
         store_surr_id      BIGINT REFERENCES BL_DM.DIM_STORES(store_surr_id),
-        date_dt            DATE NOT NULL REFERENCES BL_DM.DIM_DATES(date_dt),
+        transaction_date   DATE,
         product_surr_id    BIGINT REFERENCES BL_DM.DIM_PRODUCT_SUPPLIER(product_surr_id),
         time               TIME,
         promotion_surr_id  BIGINT REFERENCES BL_DM.DIM_PROMOTION(promotion_surr_id),

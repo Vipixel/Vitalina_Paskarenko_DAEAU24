@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS BL_CL.procedure_logs (
 );
 
 -- Creating a logging function in BL_CL schema
+
 CREATE OR REPLACE FUNCTION BL_CL.log_procedure_action(
     proc_name TEXT, 
     rows INT, 
@@ -25,13 +26,6 @@ BEGIN
     VALUES (proc_name, rows, message, error_message);
 END;
 $$ LANGUAGE plpgsql;
-
-SELECT table_name  
-FROM information_schema.tables  
-WHERE table_schema = 'bl_3nf'  
-AND table_type = 'BASE TABLE'  
-ORDER BY table_name;
-
 
 -- Creating a stored procedure for logging events
 CREATE OR REPLACE PROCEDURE BL_CL.insert_log(
@@ -111,14 +105,143 @@ EXCEPTION
         RAISE;
 END;
 $$;
------------create alter table for customer
-ALTER TABLE BL_3NF.CE_CUSTOMER_SCD
-ADD COLUMN IF NOT EXISTS start_date DATE DEFAULT CURRENT_DATE,
-ADD COLUMN IF NOT EXISTS end_date DATE DEFAULT '9999-12-31',
-ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
-ALTER COLUMN customer_income TYPE NUMERIC USING customer_income::NUMERIC;
+-- Procedure for loading customer
 
-------------
+CREATE OR REPLACE FUNCTION BL_CL.load_entity_data(
+    entity_type TEXT
+) RETURNS TABLE (
+    processed_rows BIGINT,
+    status TEXT,
+    error_msg TEXT
+) AS $$
+DECLARE
+    rows_affected INT := 0;
+    error_message TEXT;
+    rec RECORD;
+BEGIN
+    CASE entity_type
+        WHEN 'customers' THEN
+            -- Merge customers from offline and online sources using customer_id
+            FOR rec IN 
+                SELECT DISTINCT
+                    COALESCE(off.customer_id::TEXT, onl.customer_id::TEXT) AS source_id,
+                    COALESCE(off.customer_age::INTEGER, 0) AS customer_age,  
+                    COALESCE(onl.customer_level, 'Unknown') AS customer_level,  
+                    COALESCE(off.customer_gender, 'Unknown') AS gender,  
+                    COALESCE(off.customer_income::NUMERIC, 0) AS customer_income,  
+                    -- Assign source_system manually (since it doesn't exist in the tables)
+                    CASE 
+                        WHEN off.customer_id IS NOT NULL THEN 'sa_offline_sales'
+                        ELSE 'sa_online_sales'
+                    END AS source_system,
+                    -- Assign source_entity manually
+                    CASE 
+                        WHEN off.customer_id IS NOT NULL THEN 'src_offline_sales'
+                        ELSE 'src_online_sales'
+                    END AS source_entity
+                FROM sa_offline_sales.src_offline_sales off
+                FULL OUTER JOIN sa_online_sales.src_online_sales onl
+                ON off.customer_id::TEXT = onl.customer_id::TEXT
+            LOOP
+                RAISE NOTICE 'Processing merged customer: source_id = %, customer_age = %, customer_level = %, gender = %, customer_income = %',
+                    rec.source_id, rec.customer_age, rec.customer_level, rec.gender, rec.customer_income;
+					
+                -- Check if the customer already exists
+                IF EXISTS (
+                    SELECT 1 FROM BL_3NF.CE_CUSTOMER_SCD ex
+                    WHERE ex.source_id = rec.source_id
+                    AND ex.source_system = rec.source_system
+                    AND ex.is_active = TRUE
+                ) THEN
+                    -- Check if any fields have changed
+                    IF EXISTS (
+                        SELECT 1 FROM BL_3NF.CE_CUSTOMER_SCD ex
+                        WHERE ex.source_id = rec.source_id
+                        AND ex.source_system = rec.source_system
+                        AND ex.is_active = TRUE
+                        AND (
+                            ex.customer_age <> rec.customer_age OR
+                            ex.customer_level <> rec.customer_level OR
+                            ex.gender <> rec.gender OR
+                            ex.customer_income <> rec.customer_income
+                        )
+                    ) THEN
+                        -- Update: Deactivate old record and insert a new version
+                        UPDATE BL_3NF.CE_CUSTOMER_SCD
+                        SET is_active = FALSE,
+                            end_date = CURRENT_DATE - INTERVAL '1 day'
+                        WHERE source_id = rec.source_id
+                        AND source_system = rec.source_system
+                        AND is_active = TRUE;
+                        RAISE NOTICE 'Deactivated old record for source_id = %', rec.source_id;
+
+                        INSERT INTO BL_3NF.CE_CUSTOMER_SCD (
+                            customer_id, customer_age, customer_level, gender,
+                            customer_income, source_id, source_entity, source_system,
+                            start_date, end_date, is_active
+                        )
+                        VALUES (
+                            nextval('BL_3NF.customer_id_seq'),  
+                            rec.customer_age, rec.customer_level, rec.gender,
+                            rec.customer_income, rec.source_id, rec.source_entity, rec.source_system,
+                            CURRENT_DATE, '9999-12-31', TRUE
+                        );
+                        RAISE NOTICE 'Updated customer: source_id = %', rec.source_id;
+                    ELSE
+                        -- No changes detected, skip insert
+                        RAISE NOTICE 'Skipping existing customer (no changes): source_id = %', rec.source_id;
+                    END IF;
+                ELSE
+                    -- Insert new customer
+                    INSERT INTO BL_3NF.CE_CUSTOMER_SCD (
+                        customer_id, customer_age, customer_level, gender,
+                        customer_income, source_id, source_entity, source_system,
+                        start_date, end_date, is_active
+                    )
+                    VALUES (
+                        nextval('BL_3NF.customer_id_seq'),  
+                        rec.customer_age, rec.customer_level, rec.gender,
+                        rec.customer_income, rec.source_id, rec.source_entity, rec.source_system,
+                        CURRENT_DATE, '9999-12-31', TRUE
+                    );
+                    RAISE NOTICE 'Inserted new customer: source_id = %', rec.source_id;
+                END IF;
+            END LOOP;
+
+        ELSE
+            RAISE EXCEPTION 'Unknown entity_type: %', entity_type;
+    END CASE;
+
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
+    processed_rows := rows_affected;
+    status := 'Success';
+    error_msg := NULL;
+
+    PERFORM BL_CL.log_procedure_action(
+        'load_' || entity_type,
+        rows_affected,
+        entity_type || ' loaded successfully'
+    );
+
+    RETURN NEXT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        error_message := SQLERRM;
+        processed_rows := 0;
+        status := 'Error';
+        error_msg := error_message;
+
+        PERFORM BL_CL.log_procedure_action(
+            'load_' || entity_type,
+            0,
+            'Error loading ' || entity_type,
+            error_message
+        );
+        RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+---------run function to load
 DO $$
 DECLARE
     r RECORD;
@@ -129,15 +252,23 @@ BEGIN
     END LOOP;
 END $$;
 
----------run function to load
 SELECT * FROM BL_CL.load_entity_data('customers');
+
+-----------create alter table for customer
+
+ALTER TABLE BL_3NF.CE_CUSTOMER_SCD
+ADD COLUMN IF NOT EXISTS start_date DATE DEFAULT CURRENT_DATE,
+ADD COLUMN IF NOT EXISTS end_date DATE DEFAULT '9999-12-31',
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
+ALTER COLUMN customer_income TYPE NUMERIC USING customer_income::NUMERIC;
+
 
 ----------check the results
 
 SELECT * FROM BL_3NF.CE_CUSTOMER_SCD ;
----------
-	
--- Procedure for loading products
+
+--------- Procedure for loading products
+
 CREATE OR REPLACE PROCEDURE BL_CL.load_products()
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -200,6 +331,7 @@ $$;
 
 
 -- Procedure for loading stores
+
 CREATE OR REPLACE PROCEDURE BL_CL.load_stores()
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -255,6 +387,7 @@ END;
 $$;
 
 -- Procedure for loading dates
+
 CREATE OR REPLACE PROCEDURE BL_CL.load_dates()
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -296,6 +429,7 @@ $$;
 
 
 -- Procedure for loading suppliers
+
 CREATE OR REPLACE PROCEDURE BL_CL.load_suppliers()
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -345,6 +479,7 @@ END;
 $$;
 
 -- Procedure for loading sales
+
 CREATE OR REPLACE PROCEDURE BL_CL.load_sales()
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -353,7 +488,7 @@ DECLARE
 BEGIN
     INSERT INTO BL_3NF.CE_SALES (
         t_id, time, customer_id, store_id, product_id, promotion_id, 
-        unit_price, quantity_sold, source_id, source_system, source_entity
+        unit_price,transaction_date, quantity_sold, source_id, source_system, source_entity
     )
     SELECT
         nextval('BL_3NF.transaction_id_seq') AS t_id,
@@ -363,6 +498,7 @@ BEGIN
         cs.dim_product_id,
         cs.dim_promotion_id,
         cs.unit_price,
+		cs.transaction_date::DATE,
         cs.quantity_sold,
         cs.source_id,
         cs.source_system,
@@ -373,6 +509,7 @@ BEGIN
             off.time::TIME AS time_of_day,
             off.quantity_sold::INTEGER AS quantity_sold,
             off.unit_price::NUMERIC(10,2) AS unit_price,
+			off.transaction_date::DATE AS transaction_date,
             'sa_offline_sales' AS source_system,
             'src_offline_sales' AS source_entity,
             cust.customer_id AS dim_customer_id,
@@ -400,7 +537,8 @@ BEGIN
             '00:00:00'::TIME AS time_of_day,
             onl.quantity_sold::INTEGER AS quantity_sold,
             onl.unit_price::NUMERIC(10,2) AS unit_price,
-            'sa_online_sales' AS source_system,
+			NULL::DATE AS transaction_date,
+			'sa_online_sales' AS source_system,
             'src_online_sales' AS source_entity,
             cust.customer_id AS dim_customer_id,
             st.store_id AS dim_store_id,
@@ -441,6 +579,7 @@ EXCEPTION
         RAISE;
 END;
 $$;
+
 
 -- Call the procedures
 CALL BL_CL.load_categories();

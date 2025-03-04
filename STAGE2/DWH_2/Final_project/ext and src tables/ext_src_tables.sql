@@ -2,6 +2,15 @@
 CREATE SCHEMA IF NOT EXISTS sa_offline_sales;
 CREATE SCHEMA IF NOT EXISTS sa_online_sales;
 
+CREATE EXTENSION IF NOT EXISTS file_fdw SCHEMA sa_offline_sales;
+CREATE EXTENSION IF NOT EXISTS file_fdw SCHEMA sa_online_sales;
+
+
+CREATE SERVER IF NOT EXISTS sa_offline_sales_server FOREIGN DATA WRAPPER file_fdw;
+
+CREATE SERVER IF NOT EXISTS sa_online_sales_server FOREIGN DATA WRAPPER file_fdw;
+
+
 -- Define the foreign table for offline sales
 CREATE FOREIGN TABLE IF NOT EXISTS sa_offline_sales.ext_offline_sales (
   t_id VARCHAR(2550),
